@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobile Formatter · 本地通用手机排版工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --bg-app: #f3f4f6;
+      --bg-panel: #ffffff;
+      --border: #e5e7eb;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Header */
+    header {
+      height: 56px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .brand-badge {
+      background: #eff6ff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text-main);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    button:hover { background: #f9fafb; border-color: #d1d5db; }
+
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.primary:hover { background: var(--accent-hover); }
+
+    button.active {
+      background: #eff6ff;
+      color: var(--accent);
+      border-color: #93c5fd;
+    }
+
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(360px, 1fr) 320px minmax(460px, 1.1fr);
+      min-height: 0;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-right: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+    .pane:last-child { border-right: none; background: #e5e7eb; }
+
+    .pane-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      background: #fafafa;
+      flex-shrink: 0;
+    }
+
+    /* Editor */
+    .editor-toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    textarea#sourceInput {
+      flex: 1;
+      width: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 16px;
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "PingFang SC", monospace;
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: #1f2937;
+      background: #fff;
+    }
+
+    .stats-bar {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    /* Controls Sidebar */
+    .controls-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .control-group h3 {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .theme-btn {
+      text-align: left;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .theme-btn small {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .slider-label span:last-child {
+      color: var(--accent);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-family: inherit;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    /* Preview Area */
+    .preview-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .phone-frame {
+      background: #111827;
+      padding: 14px;
+      border-radius: 36px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+      transition: all 0.2s ease;
+    }
+    .phone-frame.no-frame {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .phone-screen {
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+    }
+    .phone-frame.no-frame .phone-screen {
+      border-radius: 8px;
+    }
+
+    /* Render Target Card */
+    #renderCard {
+      width: 430px;
+      padding: 28px 20px 36px 20px;
+      background: #ffffff;
+      color: #1f2328;
+      font-size: 18px;
+      line-height: 1.82;
+      word-break: break-word;
+    }
+
+    #renderCard h1 {
+      font-size: 1.38em;
+      line-height: 1.35;
+      margin: 0 0 12px 0;
+      font-weight: 700;
+    }
+    #renderCard h2 {
+      font-size: 1.18em;
+      line-height: 1.4;
+      margin: 22px 0 10px 0;
+      font-weight: 700;
+    }
+    #renderCard h3 {
+      font-size: 1.05em;
+      line-height: 1.45;
+      margin: 18px 0 8px 0;
+      font-weight: 600;
+    }
+    #renderCard p {
+      margin: 0 0 var(--para-gap, 14px) 0;
+      text-indent: var(--text-indent, 2em);
+      text-align: justify;
+    }
+    #renderCard .meta-line {
+      text-indent: 0 !important;
+      font-size: 0.78em;
+      line-height: 1.6;
+      opacity: 0.72;
+      margin-bottom: 8px !important;
+    }
+    #renderCard .meta-divider {
+      border: none;
+      border-top: 1px solid rgba(128, 128, 128, 0.22);
+      margin: 12px 0 18px 0;
+    }
+    #renderCard blockquote {
+      margin: 14px 0;
+      padding: 10px 14px;
+      border-left: 4px solid currentColor;
+      background: rgba(128, 128, 128, 0.07);
+      border-radius: 0 8px 8px 0;
+    }
+    #renderCard blockquote p {
+      text-indent: 0 !important;
+      margin-bottom: 6px;
+    }
+    #renderCard blockquote p:last-child { margin-bottom: 0; }
+    #renderCard ul, #renderCard ol {
+      margin: 10px 0 14px 0;
+      padding-left: 1.5em;
+    }
+    #renderCard li { margin-bottom: 6px; }
+    #renderCard table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 0.78em;
+      line-height: 1.6;
+    }
+    #renderCard th, #renderCard td {
+      border: 1px solid rgba(128, 128, 128, 0.35);
+      padding: 7px;
+      vertical-align: top;
+      text-align: left;
+      overflow-wrap: anywhere;
+      text-indent: 0;
+    }
+    #renderCard th { background: rgba(128, 128, 128, 0.1); font-weight: 600; }
+    #renderCard code {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85em;
+      background: rgba(128, 128, 128, 0.12);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    #renderCard pre {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 12px 14px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.8em;
+      line-height: 1.55;
+      margin: 14px 0;
+    }
+    #renderCard pre code { background: none; padding: 0; color: inherit; }
+    #renderCard a { color: #0969da; text-decoration: none; border-bottom: 1px solid rgba(9,105,218,0.35); }
+    #renderCard img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; }
+    #renderCard hr { border: none; border-top: 1px solid rgba(128,128,128,0.22); margin: 20px 0; }
+    #renderCard .xhs-tag {
+      display: inline-block;
+      color: #e11d48;
+      background: #ffe4e6;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.84em;
+      margin: 2px 6px 2px 0;
+      font-weight: 500;
+    }
+    #renderCard p:has(> .xhs-tag) {
+      text-indent: 0;
+      text-align: left;
+    }
+
+    /* Themes */
+    #renderCard.theme-minimal {
+      background: #ffffff;
+      color: #1f2328;
+    }
+    #renderCard.theme-xhs {
+      background: linear-gradient(180deg, #fff5f5 0%, #ffffff 18%, #fffafa 100%);
+      color: #2d1f21;
+    }
+    #renderCard.theme-xhs h1 { color: #be123c; }
+    #renderCard.theme-xhs h2 {
+      color: #be123c;
+      border-left: 4px solid #fb7185;
+      padding-left: 10px;
+    }
+    #renderCard.theme-wechat {
+      background: #ffffff;
+      color: #2c2c2c;
+    }
+    #renderCard.theme-wechat h2 {
+      color: #07c160;
+      border-bottom: 1.5px solid #e5f7ed;
+      padding-bottom: 6px;
+    }
+    #renderCard.theme-zhihu {
+      background: #ffffff;
+      color: #121212;
+    }
+    #renderCard.theme-zhihu h1, #renderCard.theme-zhihu h2 { color: #0066ff; }
+    #renderCard.theme-dark {
+      background: #141820;
+      color: #e2e8f0;
+    }
+    #renderCard.theme-dark h1, #renderCard.theme-dark h2, #renderCard.theme-dark h3 { color: #f8fafc; }
+    #renderCard.theme-dark a { color: #60a5fa; border-bottom-color: rgba(96, 165, 250, 0.4); }
+    #renderCard.theme-dark blockquote { background: rgba(255, 255, 255, 0.06); border-left-color: #60a5fa; }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111827;
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 1100px) {
+      body { height: auto; overflow: auto; }
+      .workspace { grid-template-columns: 1fr; }
+      .pane { border-right: none; border-bottom: 1px solid var(--border); min-height: 420px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>📱 Mobile Formatter</span>
+      <span class="brand-badge">通用手机排版工具</span>
+    </div>
+    <div class="header-actions">
+      <button onclick="document.getElementById('fileInput').click()">📂 导入文件 (.md/.html/.txt)</button>
+      <input type="file" id="fileInput" accept=".md,.markdown,.html,.htm,.txt" style="display:none" />
+      <button onclick="exportMobileHtml()">🌐 导出手机版 HTML</button>
+      <button onclick="exportPaginatedPngs()">📑 分页导出长图</button>
+      <button class="primary" onclick="exportLongPng()">🖼️ 导出整张长图 (PNG)</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- Left: Input -->
+    <section class="pane">
+      <div class="pane-header">
+        <span>输入区（支持 Markdown / HTML / 纯文本）</span>
+        <div class="editor-toolbar">
+          <select id="formatMode" style="width:auto; padding:3px 8px; font-size:12px;">
+            <option value="auto">自动识别格式</option>
+            <option value="markdown">Markdown</option>
+            <option value="html">HTML</option>
+            <option value="plain">纯文本</option>
+          </select>
+          <button onclick="loadSample()" style="padding:3px 8px; font-size:12px;">示例</button>
+          <button onclick="clearInput()" style="padding:3px 8px; font-size:12px;">清空</button>
+        </div>
+      </div>
+      <textarea id="sourceInput" placeholder="在这里粘贴或拖入 Markdown、HTML 或纯文本内容..."></textarea>
+      <div class="stats-bar" id="statsBar">
+        <span>字数：0</span>
+        <span>段落：0</span>
+        <span>预计阅读：0 分钟</span>
+        <span>预估手机屏数：0 屏</span>
+      </div>
+    </section>
+
+    <!-- Middle: Controls -->
+    <section class="pane">
+      <div class="pane-header">
+        <span>手机排版参数</span>
+        <button onclick="resetSettings()" style="padding:3px 8px; font-size:12px;">重置</button>
+      </div>
+      <div class="controls-body">
+        <div class="control-group">
+          <h3>排版风格</h3>
+          <div class="theme-grid">
+            <button class="theme-btn active" data-theme="minimal"><span>📖 极简阅读</span><small>长文 / 译文通用</small></button>
+            <button class="theme-btn" data-theme="xhs"><span>📕 小红书风</span><small>暖色卡片 / 标签</small></button>
+            <button class="theme-btn" data-theme="wechat"><span>💬 公众号风</span><small>清晰层次 / 深度</small></button>
+            <button class="theme-btn" data-theme="zhihu"><span>📘 知乎专栏</span><small>干货 / 知识分享</small></button>
+            <button class="theme-btn" data-theme="dark"><span>🌙 暗夜护眼</span><small>夜间舒适阅读</small></button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>尺寸与字号</h3>
+          <div class="slider-row">
+            <div class="slider-label"><span>画布宽度</span><span id="valWidth">430 px</span></div>
+            <input type="range" id="ctrlWidth" min="360" max="520" step="5" value="430" />
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>正文字号</span><span id="valFontSize">18 px</span></div>
+            <input type="range" id="ctrlFontSize" min="14" max="24" step="1" value="18" />
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>行高</span><span id="valLineHeight">1.82</span></div>
+            <input type="range" id="ctrlLineHeight" min="1.4" max="2.2" step="0.05" value="1.82" />
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>段落间距</span><span id="valParaGap">14 px</span></div>
+            <input type="range" id="ctrlParaGap" min="6" max="26" step="2" value="14" />
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>左右边距</span><span id="valPaddingX">20 px</span></div>
+            <input type="range" id="ctrlPaddingX" min="12" max="36" step="2" value="20" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>字体与细节</h3>
+          <div style="margin-bottom: 12px;">
+            <select id="ctrlFontFamily">
+              <option value='"PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", -apple-system, sans-serif'>无衬线 · 苹方 / 思源黑体（推荐）</option>
+              <option value='"Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif'>衬线 · 宋体 / 思源宋体（书刊感）</option>
+              <option value='"SF Mono", Menlo, Consolas, "PingFang SC", monospace'>等宽 · 技术文档风格</option>
+            </select>
+          </div>
+          <div class="toggle-row">
+            <span>中文首行缩进 (2em)</span>
+            <input type="checkbox" id="ctrlIndent" checked />
+          </div>
+          <div class="toggle-row">
+            <span>高亮 #话题标签</span>
+            <input type="checkbox" id="ctrlTags" checked />
+          </div>
+          <div class="toggle-row">
+            <span>显示手机边框</span>
+            <input type="checkbox" id="ctrlPhoneFrame" checked />
+          </div>
+          <div style="margin-top: 8px;">
+            <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">导出清晰度倍率</label>
+            <select id="ctrlScale">
+              <option value="2">2x Retina（推荐，体积适中）</option>
+              <option value="3">3x 超清（适合印刷/放大）</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Mobile Preview -->
+    <section class="pane">
+      <div class="pane-header">
+        <span>手机实时预览</span>
+        <span id="previewMeta" style="font-weight:400; color:var(--text-muted);">430px · 18px</span>
+      </div>
+      <div class="preview-scroll">
+        <div class="phone-frame" id="phoneFrame">
+          <div class="phone-screen">
+            <div id="renderCard" class="theme-minimal"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'mobile_formatter_state_v1';
+
+    const els = {
+      input: document.getElementById('sourceInput'),
+      formatMode: document.getElementById('formatMode'),
+      renderCard: document.getElementById('renderCard'),
+      phoneFrame: document.getElementById('phoneFrame'),
+      statsBar: document.getElementById('statsBar'),
+      previewMeta: document.getElementById('previewMeta'),
+      toast: document.getElementById('toast'),
+      ctrlWidth: document.getElementById('ctrlWidth'),
+      ctrlFontSize: document.getElementById('ctrlFontSize'),
+      ctrlLineHeight: document.getElementById('ctrlLineHeight'),
+      ctrlParaGap: document.getElementById('ctrlParaGap'),
+      ctrlPaddingX: document.getElementById('ctrlPaddingX'),
+      ctrlFontFamily: document.getElementById('ctrlFontFamily'),
+      ctrlIndent: document.getElementById('ctrlIndent'),
+      ctrlTags: document.getElementById('ctrlTags'),
+      ctrlPhoneFrame: document.getElementById('ctrlPhoneFrame'),
+      ctrlScale: document.getElementById('ctrlScale'),
+    };
+
+    let currentTheme = 'minimal';
+
+    function showToast(msg) {
+      els.toast.textContent = msg;
+      els.toast.classList.add('show');
+      setTimeout(() => els.toast.classList.remove('show'), 2400);
+    }
+
+    function detectFormat(text) {
+      const mode = els.formatMode.value;
+      if (mode !== 'auto') return mode;
+      const trimmed = text.trim();
+      if (/<(html|body|div|p|h[1-6]|article)\b/i.test(trimmed)) return 'html';
+      if (/^#{1,6}\s|^\s*(?:[-*+]|\d+\.)\s|^>\s?|```|\[.+\]\(.+\)|\*\*.+?\*\*|\*[^*\n]+\*|`[^`\n]+`/m.test(trimmed)) return 'markdown';
+      const lines = trimmed.split(/\r?\n/);
+      if (lines.some((line, i) => tableAlignments(line, lines[i + 1] || ''))) return 'markdown';
+      return 'plain';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function tableCells(line) {
+      return line.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '')
+        .split(/(?<!\\)\|/).map(cell => cell.trim());
+    }
+
+    function tableAlignments(header, delimiter) {
+      if (!header.includes('|')) return null;
+      const cells = tableCells(delimiter);
+      if (cells.length !== tableCells(header).length || !cells.every(cell => /^:?-{3,}:?$/.test(cell))) return null;
+      return cells.map(cell => cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : 'left');
+    }
+
+    // Lightweight built-in Markdown parser (offline-ready)
+    function parseMarkdown(md) {
+      let text = md.replace(/\r\n/g, '\n');
+      const codeBlocks = [];
+      text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+        const idx = codeBlocks.length;
+        codeBlocks.push(`<pre><code>${escapeHtml(code.trim())}</code></pre>`);
+        return `\n@@CODEBLOCK_${idx}@@\n`;
+      });
+
+      const lines = text.split('\n');
+      let html = '';
+      let inList = null;
+      let paraBuf = [];
+
+      const flushPara = () => {
+        if (!paraBuf.length) return;
+        const raw = paraBuf.join(' ').trim();
+        if (raw) {
+          const isMeta = /^(发布于|作者：|Posted on|\[本文)/.test(raw) || /^\*\[.*\]\*$/.test(raw);
+          html += `<p class="${isMeta ? 'meta-line' : ''}">${inlineMd(raw)}</p>`;
+        }
+        paraBuf = [];
+      };
+
+      const closeList = () => {
+        if (inList) {
+          html += `</${inList}>`;
+          inList = null;
+        }
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const t = line.trim();
+        if (!t) {
+          flushPara();
+          closeList();
+          continue;
+        }
+        if (/^@@CODEBLOCK_(\d+)@@$/.test(t)) {
+          flushPara(); closeList();
+          html += codeBlocks[RegExp.$1];
+          continue;
+        }
+        const alignments = tableAlignments(t, lines[i + 1] || '');
+        if (alignments) {
+          flushPara(); closeList();
+          const row = (cells, tag) => '<tr>' + alignments.map((align, col) =>
+            `<${tag} style="text-align:${align}">${inlineMd((cells[col] || '').replace(/\\\|/g, '|'))}</${tag}>`).join('') + '</tr>';
+          html += '<table><thead>' + row(tableCells(t), 'th') + '</thead><tbody>';
+          i++;
+          while (i + 1 < lines.length && lines[i + 1].trim() && lines[i + 1].includes('|')) {
+            html += row(tableCells(lines[++i]), 'td');
+          }
+          html += '</tbody></table>';
+          continue;
+        }
+        if (/^---+$|^\*\*\*+$/.test(t)) {
+          flushPara(); closeList();
+          html += '<hr />';
+          continue;
+        }
+        const hMatch = t.match(/^(#{1,6})\s+(.+)$/);
+        if (hMatch) {
+          flushPara(); closeList();
+          const lvl = Math.min(hMatch[1].length, 3);
+          html += `<h${lvl}>${inlineMd(hMatch[2])}</h${lvl}>`;
+          continue;
+        }
+        if (t.startsWith('>')) {
+          flushPara(); closeList();
+          html += `<blockquote><p>${inlineMd(t.replace(/^>\s?/, ''))}</p></blockquote>`;
+          continue;
+        }
+        const ulMatch = t.match(/^[-*+]\s+(.+)$/);
+        if (ulMatch) {
+          flushPara();
+          if (inList !== 'ul') { closeList(); html += '<ul>'; inList = 'ul'; }
+          html += `<li>${inlineMd(ulMatch[1])}</li>`;
+          continue;
+        }
+        const olMatch = t.match(/^\d+\.\s+(.+)$/);
+        if (olMatch) {
+          flushPara();
+          if (inList !== 'ol') { closeList(); html += '<ol>'; inList = 'ol'; }
+          html += `<li>${inlineMd(olMatch[1])}</li>`;
+          continue;
+        }
+        closeList();
+        paraBuf.push(t);
+      }
+      flushPara();
+      closeList();
+      return html;
+    }
+
+    function inlineMd(s) {
+      let out = escapeHtml(s);
+      out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+      out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+      out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      return out;
+    }
+
+    function extractHtmlBody(rawHtml) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawHtml, 'text/html');
+      const container = doc.querySelector('#markdown-content, .markdown-viewer-content, article, main') || doc.body;
+      return container ? container.innerHTML : rawHtml;
+    }
+
+    function render() {
+      const raw = els.input.value;
+      const fmt = detectFormat(raw);
+      let html = '';
+
+      if (!raw.trim()) {
+        html = '<h1>手机排版预览区</h1><p class="meta-line">在左侧输入或导入 Markdown / HTML / 文本</p><hr class="meta-divider"/><p>支持一键切换阅读风格、自由调节字号与行距，并导出适合手机阅读的高清长图或分页图片。</p>';
+      } else if (fmt === 'html') {
+        html = extractHtmlBody(raw);
+      } else if (fmt === 'markdown') {
+        html = parseMarkdown(raw);
+      } else {
+        const lines = raw.split(/\n+/).filter(l => l.trim());
+        html = lines.map((l, i) => i === 0 && l.length < 45
+          ? `<h1>${escapeHtml(l.trim())}</h1>`
+          : `<p>${escapeHtml(l.trim())}</p>`).join('');
+      }
+
+      if (els.ctrlTags.checked) {
+        html = html.replace(/(^|[\s>])#([^\s#<]{1,24})/g, '$1<span class="xhs-tag">#$2</span>');
+      }
+
+      els.renderCard.innerHTML = html;
+
+      // Apply styles
+      const w = els.ctrlWidth.value;
+      const fs = els.ctrlFontSize.value;
+      const lh = els.ctrlLineHeight.value;
+      const pg = els.ctrlParaGap.value;
+      const px = els.ctrlPaddingX.value;
+
+      els.renderCard.style.width = `${w}px`;
+      els.renderCard.style.fontSize = `${fs}px`;
+      els.renderCard.style.lineHeight = lh;
+      els.renderCard.style.padding = `28px ${px}px 36px ${px}px`;
+      els.renderCard.style.fontFamily = els.ctrlFontFamily.value;
+      els.renderCard.style.setProperty('--para-gap', `${pg}px`);
+      els.renderCard.style.setProperty('--text-indent', els.ctrlIndent.checked ? '2em' : '0');
+
+      els.renderCard.className = `theme-${currentTheme}`;
+      els.phoneFrame.classList.toggle('no-frame', !els.ctrlPhoneFrame.checked);
+
+      document.getElementById('valWidth').textContent = `${w} px`;
+      document.getElementById('valFontSize').textContent = `${fs} px`;
+      document.getElementById('valLineHeight').textContent = lh;
+      document.getElementById('valParaGap').textContent = `${pg} px`;
+      document.getElementById('valPaddingX').textContent = `${px} px`;
+      els.previewMeta.textContent = `${w}px · ${fs}px · ${fmt.toUpperCase()}`;
+
+      // Stats
+      const plainText = els.renderCard.innerText || '';
+      const charCount = plainText.replace(/\s+/g, '').length;
+      const paraCount = els.renderCard.querySelectorAll('p').length;
+      const readMin = Math.max(1, Math.ceil(charCount / 400));
+      const screens = Math.max(1, Math.ceil(els.renderCard.scrollHeight / 844));
+      els.statsBar.innerHTML = `
+        <span>字数：${charCount}</span>
+        <span>段落：${paraCount}</span>
+        <span>预计阅读：${readMin} 分钟</span>
+        <span>预估手机屏数：${screens} 屏</span>
+      `;
+
+      saveState();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          input: els.input.value,
+          formatMode: els.formatMode.value,
+          theme: currentTheme,
+          width: els.ctrlWidth.value,
+          fontSize: els.ctrlFontSize.value,
+          lineHeight: els.ctrlLineHeight.value,
+          paraGap: els.ctrlParaGap.value,
+          paddingX: els.ctrlPaddingX.value,
+          fontFamily: els.ctrlFontFamily.value,
+          indent: els.ctrlIndent.checked,
+          tags: els.ctrlTags.checked,
+          phoneFrame: els.ctrlPhoneFrame.checked,
+        }));
+      } catch (_) {}
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return loadSample();
+        const s = JSON.parse(raw);
+        if (s.input !== undefined) els.input.value = s.input;
+        if (s.formatMode) els.formatMode.value = s.formatMode;
+        if (s.theme) setTheme(s.theme);
+        if (s.width) els.ctrlWidth.value = s.width;
+        if (s.fontSize) els.ctrlFontSize.value = s.fontSize;
+        if (s.lineHeight) els.ctrlLineHeight.value = s.lineHeight;
+        if (s.paraGap) els.ctrlParaGap.value = s.paraGap;
+        if (s.paddingX) els.ctrlPaddingX.value = s.paddingX;
+        if (s.fontFamily) els.ctrlFontFamily.value = s.fontFamily;
+        if (s.indent !== undefined) els.ctrlIndent.checked = s.indent;
+        if (s.tags !== undefined) els.ctrlTags.checked = s.tags;
+        if (s.phoneFrame !== undefined) els.ctrlPhoneFrame.checked = s.phoneFrame;
+      } catch (_) {
+        loadSample();
+      }
+    }
+
+    function setTheme(theme) {
+      currentTheme = theme;
+      document.querySelectorAll('.theme-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.theme === theme);
+      });
+    }
+
+    function resetSettings() {
+      setTheme('minimal');
+      els.ctrlWidth.value = 430;
+      els.ctrlFontSize.value = 18;
+      els.ctrlLineHeight.value = 1.82;
+      els.ctrlParaGap.value = 14;
+      els.ctrlPaddingX.value = 20;
+      els.ctrlFontFamily.selectedIndex = 0;
+      els.ctrlIndent.checked = true;
+      els.ctrlTags.checked = true;
+      els.ctrlPhoneFrame.checked = true;
+      render();
+      showToast('已重置为默认手机阅读参数');
+    }
+
+    function clearInput() {
+      els.input.value = '';
+      render();
+    }
+
+    function loadSample() {
+      els.input.value = `# [转载] 认识论习得性无助
+
+发布于 2019年6月3日 | 作者：Scott Alexander
+
+*[本文略作修改，转载自我的旧 LiveJournal 博客]*
+
+---
+
+最近有位朋友抱怨，很多人缺乏“相信论证”这一基本技能。也就是说，如果你对某件事有一个有效的论证，那么你就应该接受它的结论——即便这个结论不受欢迎、令人不便，或者你不喜欢它。
+
+> 这其实是正确的贝叶斯行动：如果我知道一个错误的论证听起来和正确的论证一样有说服力，那么“论证的说服力”就无法在任何方向上提供证据。
+
+所以我很高兴“认识论习得性无助”的存在。在绝大多数时候，它似乎都是一个相当有用的社会安全阀。
+
+#理性思考 #认识论 #长文阅读`;
+      render();
+    }
+
+    async function exportLongPng() {
+      if (typeof html2canvas === 'undefined') {
+        showToast('未加载 html2canvas，请检查网络或使用本地 CLI (mobile_format.py)');
+        return;
+      }
+      showToast('正在生成高清长图...');
+      const scale = Number(els.ctrlScale.value) || 2;
+      const canvas = await html2canvas(els.renderCard, { scale, useCORS: true, backgroundColor: null });
+      const link = document.createElement('a');
+      link.download = `mobile-article-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('长图导出成功');
+    }
+
+    async function exportPaginatedPngs() {
+      if (typeof html2canvas === 'undefined') {
+        showToast('未加载 html2canvas，请使用本地 CLI (mobile_format.py)');
+        return;
+      }
+      showToast('正在分页导出...');
+      const scale = Number(els.ctrlScale.value) || 2;
+      const fullCanvas = await html2canvas(els.renderCard, { scale, useCORS: true, backgroundColor: null });
+      const pageHeightPx = Math.round(Number(els.ctrlWidth.value) * (4 / 3) * scale); // 3:4 手机卡片比例
+      const totalPages = Math.ceil(fullCanvas.height / pageHeightPx);
+
+      for (let i = 0; i < totalPages; i++) {
+        const sliceHeight = Math.min(pageHeightPx, fullCanvas.height - i * pageHeightPx);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = fullCanvas.width;
+        pageCanvas.height = sliceHeight;
+        const ctx = pageCanvas.getContext('2d');
+        ctx.drawImage(fullCanvas, 0, i * pageHeightPx, fullCanvas.width, sliceHeight, 0, 0, fullCanvas.width, sliceHeight);
+        const link = document.createElement('a');
+        link.download = `mobile-page-${i + 1}-of-${totalPages}.png`;
+        link.href = pageCanvas.toDataURL('image/png');
+        link.click();
+      }
+      showToast(`已导出 ${totalPages} 张分页图片`);
+    }
+
+    function exportMobileHtml() {
+      const styleTag = document.querySelector('style').innerHTML;
+      const cardStyle = els.renderCard.getAttribute('style') || '';
+      const doc = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mobile Article</title>
+<style>
+${styleTag}
+body { display:block; height:auto; overflow:auto; background:#f5f5f5; padding: 16px 0; }
+#renderCard { margin: 0 auto; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; }
+</style>
+</head>
+<body>
+<div id="renderCard" class="${els.renderCard.className}" style="${cardStyle}">
+${els.renderCard.innerHTML}
+</div>
+</body>
+</html>`;
+      const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+      const link = document.createElement('a');
+      link.download = `mobile-article-${Date.now()}.html`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      showToast('已导出自适应手机版 HTML');
+    }
+
+    // Event bindings
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => { setTheme(btn.dataset.theme); render(); });
+    });
+
+    [els.input, els.formatMode, els.ctrlWidth, els.ctrlFontSize, els.ctrlLineHeight,
+     els.ctrlParaGap, els.ctrlPaddingX, els.ctrlFontFamily, els.ctrlIndent,
+     els.ctrlTags, els.ctrlPhoneFrame].forEach(el => {
+      el.addEventListener('input', render);
+      el.addEventListener('change', render);
+    });
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        els.input.value = reader.result;
+        render();
+        showToast(`已导入：${file.name}`);
+      };
+      reader.readAsText(file);
+    });
+
+    els.input.addEventListener('dragover', e => e.preventDefault());
+    els.input.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        els.input.value = reader.result;
+        render();
+        showToast(`已导入：${file.name}`);
+      };
+      reader.readAsText(file);
+    });
+
+    loadState();
+    render();
+  </script>
+</body>
+</html>
