@@ -104,6 +104,7 @@
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       border-right: 1px solid var(--border);
       background: var(--bg-panel);
     }
@@ -242,6 +243,7 @@
       background: #111827;
       padding: 14px;
       border-radius: 36px;
+      flex-shrink: 0;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
       transition: all 0.2s ease;
     }
@@ -433,8 +435,33 @@
 
     @media (max-width: 1100px) {
       body { height: auto; overflow: auto; }
-      .workspace { grid-template-columns: 1fr; }
-      .pane { border-right: none; border-bottom: 1px solid var(--border); min-height: 420px; }
+      header { height: auto; min-height: 56px; flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+      .header-actions { flex-wrap: wrap; }
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+      .pane { border-right: none; border-bottom: 1px solid var(--border); }
+      textarea#sourceInput { flex: none; height: 320px; }
+      .controls-body, .preview-scroll { flex: none; overflow: visible; }
+    }
+
+    @media (max-width: 600px) {
+      .brand { width: 100%; flex-wrap: wrap; gap: 6px 10px; }
+      .brand-badge { font-size: 11px; }
+      .header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; width: 100%; }
+      .header-actions button { min-height: 44px; padding: 8px; }
+      .pane-header { flex-wrap: wrap; gap: 8px; padding: 12px; }
+      .editor-toolbar { width: 100%; }
+      .editor-toolbar select { flex: 1; min-width: 0; }
+      .editor-toolbar button, .editor-toolbar select { min-height: 40px; }
+      textarea#sourceInput { height: 280px; padding: 12px; font-size: 16px; }
+      .stats-bar { padding: 10px 12px; gap: 6px 12px; }
+      .controls-body { padding: 16px 12px; }
+      .controls-body select { font-size: 16px; min-height: 44px; }
+      input[type="range"] { height: 28px; margin: 0; }
+      .toggle-row { min-height: 40px; }
+      .toggle-row input { width: 22px; height: 22px; margin: 0; }
+      .preview-scroll { padding: 20px 12px 32px; }
+      #previewMeta { font-size: 11px; }
+      .toast { max-width: calc(100% - 24px); width: max-content; text-align: center; }
     }
   </style>
 </head>
@@ -807,6 +834,13 @@
       saveState();
     }
 
+    function fitPreview() {
+      const area = els.phoneFrame.parentElement;
+      const style = getComputedStyle(area);
+      const available = area.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      els.phoneFrame.style.zoom = Math.min(1, available / els.phoneFrame.offsetWidth);
+    }
+
     function saveState() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -901,7 +935,10 @@
       }
       showToast('正在生成高清长图...');
       const scale = Number(els.ctrlScale.value) || 2;
-      const canvas = await html2canvas(els.renderCard, { scale, useCORS: true, backgroundColor: null });
+      const canvas = await html2canvas(els.renderCard, {
+        scale, useCORS: true, backgroundColor: null,
+        onclone: doc => { doc.getElementById('phoneFrame').style.zoom = '1'; },
+      });
       const link = document.createElement('a');
       link.download = `mobile-article-${Date.now()}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -916,7 +953,10 @@
       }
       showToast('正在分页导出...');
       const scale = Number(els.ctrlScale.value) || 2;
-      const fullCanvas = await html2canvas(els.renderCard, { scale, useCORS: true, backgroundColor: null });
+      const fullCanvas = await html2canvas(els.renderCard, {
+        scale, useCORS: true, backgroundColor: null,
+        onclone: doc => { doc.getElementById('phoneFrame').style.zoom = '1'; },
+      });
       const pageHeightPx = Math.round(Number(els.ctrlWidth.value) * (4 / 3) * scale); // 3:4 手机卡片比例
       const totalPages = Math.ceil(fullCanvas.height / pageHeightPx);
 
@@ -1001,6 +1041,10 @@ ${els.renderCard.innerHTML}
       };
       reader.readAsText(file);
     });
+
+    const previewObserver = new ResizeObserver(fitPreview);
+    previewObserver.observe(els.phoneFrame.parentElement);
+    previewObserver.observe(els.phoneFrame);
 
     loadState();
     render();
